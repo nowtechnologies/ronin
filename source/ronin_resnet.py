@@ -19,7 +19,7 @@ from model_resnet1d import *
 _input_channel, _output_channel = 6, 2
 _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
 
-
+# from ronin_resnet.test_sequence
 def get_model(arch):
     if arch == 'resnet18':
         network = ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2],
@@ -38,6 +38,7 @@ def get_model(arch):
     return network
 
 
+# from ronin_resnet.test_sequence as targets, preds = run_test(network, seq_loader, device, True)
 def run_test(network, data_loader, device, eval_mode=True):
     targets_all = []
     preds_all = []
@@ -60,8 +61,8 @@ def add_summary(writer, loss, step, mode):
         writer.add_scalar(names[i], loss[i], step)
     writer.add_scalar('{}_loss/avg'.format(mode), np.mean(loss), step)
 
-
-def get_dataset(root_dir, data_list, args, **kwargs):
+# from ronin_resnet.test_sequence as seq_dataset = get_dataset(root_dir, [data],    args, mode='test')
+def get_dataset(                                               root_dir, data_list, args, **kwargs):
     mode = kwargs.get('mode', 'train')
 
     random_shift, shuffle, transforms, grv_only = 0, False, None, False
@@ -260,17 +261,17 @@ def recon_traj_with_preds(dataset, preds, seq_id=0, **kwargs):
     pos = interp1d(ts_ext, pos, axis=0)(ts)
     return pos
 
-
+# from ronin_resnet.main
 def test_sequence(args):
     if args.test_path is not None:
         if args.test_path[-1] == '/':
-            args.test_path = args.test_path[:-1]
+            args.test_path = args.test_path[:-1] # deteletes trailing /
         root_dir = osp.split(args.test_path)[0]
-        test_data_list = [osp.split(args.test_path)[1]]
+        test_data_list = [osp.split(args.test_path)[1]] # from path after the first token of root_dir
     elif args.test_list is not None:
         root_dir = args.root_dir
         with open(args.test_list) as f:
-            test_data_list = [s.strip().split(',' or ' ')[0] for s in f.readlines() if len(s) > 0 and s[0] != '#']
+            test_data_list = [s.strip().split(',' or ' ')[0] for s in f.readlines() if len(s) > 0 and s[0] != '#'] # from the file named in test_list all the non-remark lines' first words
     else:
         raise ValueError('Either test_path or test_list must be specified.')
 
@@ -279,21 +280,25 @@ def test_sequence(args):
 
     if not torch.cuda.is_available() or args.cpu:
         device = torch.device('cpu')
-        checkpoint = torch.load(args.model_path, map_location=lambda storage, location: storage)
+        checkpoint = torch.load(args.model_path, map_location=lambda storage, location: storage) # checkpoint variable contains the model
     else:
         device = torch.device('cuda:0')
         checkpoint = torch.load(args.model_path)
 
     # Load the first sequence to update the input and output size
-    _ = get_dataset(root_dir, [test_data_list[0]], args)
+    # these: _input_channel, _output_channel
+
+    _ = get_dataset(root_dir, [test_data_list[0]], args)          # ignore return value
 
     global _fc_config
     _fc_config['in_dim'] = args.window_size // 32 + 1
 
-    network = get_model(args.arch)
+    network = get_model(args.arch) # resnet18
+    # network is ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2], base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
 
-    network.load_state_dict(checkpoint['model_state_dict'])
-    network.eval().to(device)
+    network.load_state_dict(checkpoint['model_state_dict']) #Copies parameters and buffers from state_dict into this module and its descendants.
+    network.eval().to(device)                               # Sets the module in evaluation mode. This is equivalent with self.train(False).
+    #  This method modifies the module in-place. the desired device of the parameters and buffers in this module
     print('Model {} loaded to device {}.'.format(args.model_path, device))
 
     preds_seq, targets_seq, losses_seq, ate_all, rte_all = [], [], [], [], []
@@ -302,7 +307,7 @@ def test_sequence(args):
     pred_per_min = 200 * 60
 
     for data in test_data_list:
-        seq_dataset = get_dataset(root_dir, [data], args, mode='test')
+        seq_dataset = get_dataset(root_dir, [data], args, mode='test')           # will be of type StridedSequenceDataset
         seq_loader = DataLoader(seq_dataset, batch_size=1024, shuffle=False)
         ind = np.array([i[1] for i in seq_dataset.index_map if i[0] == 0], dtype=np.int)
 

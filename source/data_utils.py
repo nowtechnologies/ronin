@@ -58,7 +58,8 @@ class CompiledSequence(ABC):
     def get_meta(self):
         return "No info available"
 
-
+# from data_glob_speed.StridedSequenceDataset(Dataset)__init__ as load_cached_sequences(seq_type, root_dir, data_list, cache_path, interval=self.interval, **kwargs)
+# seq_type is GlobSpeedSequence
 def load_cached_sequences(seq_type, root_dir, data_list, cache_path, **kwargs):
     grv_only = kwargs.get('grv_only', True)
 
@@ -89,7 +90,7 @@ def load_cached_sequences(seq_type, root_dir, data_list, cache_path, **kwargs):
                 targ = np.copy(f['target'])
                 aux = np.copy(f['aux'])
         else:
-            seq = seq_type(osp.join(root_dir, data_list[i]), **kwargs)
+            seq = seq_type(osp.join(root_dir, data_list[i]), **kwargs)         # GlobSpeedSequee
             feat, targ, aux = seq.get_feature(), seq.get_target(), seq.get_aux()
             print(seq.get_meta())
             if cache_path is not None and osp.isdir(cache_path):
@@ -103,6 +104,7 @@ def load_cached_sequences(seq_type, root_dir, data_list, cache_path, **kwargs):
     return features_all, targets_all, aux_all
 
 
+# from data_glob_speed.GlobSpeedSequence.load as self.info['ori_source'], ori, self.info['source_ori_error'] = select_orientation_source(data_path, self.max_ori_error, self.grv_only)
 def select_orientation_source(data_path, max_ori_error=20.0, grv_only=True, use_ekf=True):
     """
     Select orientation from one of gyro integration, game rotation vector or EKF orientation.
@@ -129,15 +131,15 @@ def select_orientation_source(data_path, max_ori_error=20.0, grv_only=True, use_
     with open(osp.join(data_path, 'info.json')) as f:
         info = json.load(f)
         ori_errors = np.array(
-            [info['gyro_integration_error'], info['grv_ori_error'], info['ekf_ori_error']])
-        init_gyro_bias = np.array(info['imu_init_gyro_bias'])
+            [info['gyro_integration_error'], info['grv_ori_error'], info['ekf_ori_error']])  # array([8.48168944, 8.35377949, 3.62391029])
+        init_gyro_bias = np.array(info['imu_init_gyro_bias'])                                # array([ 0.005569,  0.009201, -0.000183])
 
     with h5py.File(osp.join(data_path, 'data.hdf5')) as f:
         ori_sources[1] = np.copy(f['synced/game_rv'])
-        if grv_only or ori_errors[1] < max_ori_error:
+        if grv_only or ori_errors[1] < max_ori_error: # grv_only is true
             min_id = 1
         else:
-            if use_ekf:
+            if use_ekf: # true
                 ori_names.append('ekf')
                 ori_sources[2] = np.copy(f['pose/ekf_ori'])
             min_id = np.argmin(ori_errors[:len(ori_names)])
@@ -147,4 +149,4 @@ def select_orientation_source(data_path, max_ori_error=20.0, grv_only=True, use_
                 gyro = f['synced/gyro_uncalib'] - init_gyro_bias
                 ori_sources[0] = gyro_integration(ts, gyro, ori_sources[1][0])
 
-    return ori_names[min_id], ori_sources[min_id], ori_errors[min_id]
+    return ori_names[min_id], ori_sources[min_id], ori_errors[min_id] #('game_rv', array([[ 0.02301384, -0.734161  ,  0.00956859,  0.67851714], [ 0.02296023, -0.73417201,  0.00956628,  0.67850771], ..., [ 0.05430064,  0.70888897,  0.07640499, -0.69906256]]), 8.353779492444412)

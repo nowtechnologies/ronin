@@ -148,8 +148,9 @@ class GlobAvgOutputModule(nn.Module):
 
 
 class ResNet1D(nn.Module):
-    def __init__(self, num_inputs, num_outputs, block_type, group_sizes, base_plane=64, output_block=None,
-                 zero_init_residual=False, **kwargs):
+    # from ronin_resnet.get_model as ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2], base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
+    # _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
+    def __init__(self,                            num_inputs,     num_outputs,   block_type,  group_sizes, base_plane=64, output_block=None,         zero_init_residual=False, **kwargs):
         super(ResNet1D, self).__init__()
         self.base_plane = base_plane
         self.inplanes = self.base_plane
