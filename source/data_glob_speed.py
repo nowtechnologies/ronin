@@ -43,7 +43,7 @@ class GlobSpeedSequence(CompiledSequence):
 
         self.info['path'] = osp.split(data_path)[-1]
 
-        self.info['ori_source'], ori, self.info['source_ori_error'] = select_orientation_source( # ori is hdf5.synced.game_rv[1]
+        self.info['ori_source'], ori, self.info['source_ori_error'] = select_orientation_source( # ori is hdf5.synced.game_rv i. e. Android Sensor.TYPE_GAME_ROTATION_VECTOR
             data_path, self.max_ori_error, self.grv_only)
         #('game_rv', array([[ 0.02301384, -0.734161  ,  0.00956859,  0.67851714], [ 0.02296023, -0.73417201,  0.00956628,  0.67850771], ..., [ 0.05427992,  0.70881762,  0.07637797, -0.6991363 ]]]), 8.353779492444412)
 
@@ -58,33 +58,37 @@ class GlobSpeedSequence(CompiledSequence):
 
         # Compute the IMU orientation in the Tango coordinate frame.
         ori_q = quaternion.from_float_array(ori)                                   # array([quaternion(0.0230138445473811, -0.734161004581412, 0.00956858773770847, 0.678517142961637), quaternion(0.0229602307881793, -0.734172007659053, 0.00956628356173319, 0.678507709011024), ..., quaternion(0.0542799190079345, 0.708817623072373, 0.0763779734707989, -0.6991362963311)], dtype=quaternion)
+        # hdf5.synced.game_rv i. e. Android Sensor.TYPE_GAME_ROTATION_VECTOR
 
         rot_imu_to_tango = quaternion.quaternion(*self.info['start_calibration'])  # quaternion(0, 0.99995545, 0.009439, 0)
         init_rotor = init_tango_ori * rot_imu_to_tango * ori_q[0].conj()           # quaternion(-0.695289552060529, 0.00118374652078425, 0.00248606386725569, 0.718723783950829)
         ori_q = init_rotor * ori_q                                                 # array([quaternion(-0.5028224217168, 0.50529138394065, -0.535057892743795, -0.453388785030156), quaternion(-0.502778345472314, 0.505300603413145, -0.535064320967734, -0.453420734559951), ..., quaternion(0.463716682908265, -0.54940199756135, 0.457301820727505, 0.523442677366401)], dtype=quaternion)
-        # f['pose/tango_ori'][0] * self.info['start_calibration'] * conj(f['synced/game_rv'][1])
+        # ori_q = f['pose/tango_ori'][0] * self.info['start_calibration'] * conj(f['synced/game_rv'][0]) * f['synced/game_rv']
 
         dt = (ts[self.w:] - ts[:-self.w])[:, None]                                 # array([[1.], [1.], [1.], ..., [1.],[1.], [1.]])
 
         glob_v = (tango_pos[self.w:] - tango_pos[:-self.w]) / dt                   # array([[-0.00533056,  0.01667982, -0.00509732], [-0.00531125,  0.016594  , -0.00511179], ..., [-0.0023489 ,  0.00633583, -0.00057166]])
 
-
+        # these two below are position vector arrays
         gyro_q = quaternion.from_float_array(np.concatenate([np.zeros([gyro.shape[0], 1]), gyro], axis=1))  # array([quaternion(0, -0.0223062507369463, 0.0137648946088728, 0.0187676819234896), quaternion(0, -0.0167307794589504, 0.00785385399152264, 0.018089989505323), ..., quaternion(0, 0.00657855020053501, -0.0280754170707831, 0.0080471337151681)], dtype=quaternion)
         acce_q = quaternion.from_float_array(np.concatenate([np.zeros([acce.shape[0], 1]), acce], axis=1))  # array([quaternion(0, -9.76895340810378, -0.193322357928738, -0.852349993053583), quaternion(0, -9.76140265037272, -0.209906902110648, -0.810189151712629), ..., quaternion(0, -9.8206628384554, -0.325939671417927, -0.282658875290474)], dtype=quaternion)
 
+        # each element vector rotated by the corresponding ori_q rotation quaternion
+        # At test time, we use the coordinate frame defined by system device orientations from Android or iOS, whose Z axis is aligned with gravity.
+        # The whole is transformed into the global (Tango) coordinate frame.
         glob_gyro = quaternion.as_float_array(ori_q * gyro_q * ori_q.conj())[:, 1:]  # array([[-0.01258328,  0.02161022,  0.02034508], [-0.00665554,  0.02000185,  0.0149826 ], ..., [ 0.02674353,  0.01209917, -0.0058859 ]])
         glob_acce = quaternion.as_float_array(ori_q * acce_q * ori_q.conj())[:, 1:]  # array([[-3.46650073e-02, -3.36474233e-02,  9.80783499e+00], [-1.38849800e-02,  6.54256497e-03,  9.79719413e+00], ..., [ 3.31727211e-02, -6.26925428e-02,  9.82980926e+00]])
 
         start_frame = self.info.get('start_frame', 0)                                # 5896
         self.ts = ts[start_frame:]                                                   # array([3670.87639807, 3670.88139807, 3670.88639807, ..., 3965.14139807, 3965.14639807, 3965.15139807])
         self.features = np.concatenate([glob_gyro, glob_acce], axis=1)[start_frame:] # array([[-5.94662071e-03, -9.38751552e-03, -5.15188486e-03, -3.08588928e-02,  6.39869105e-02,  9.86019268e+00], [-5.27530580e-03, -7.75847573e-03, -1.59778536e-02, -3.54599110e-02,  5.16253587e-02,  9.82394159e+00], ..., [ 2.67435308e-02,  1.20991655e-02, -5.88589595e-03, 3.31727211e-02, -6.26925428e-02,  9.82980926e+00]])
-        self.targets = glob_v[start_frame:, :2]                                      # array([[-0.02427537,  0.02117807], [-0.02406481,  0.02145767], ..., [-0.0023489 ,  0.00633583]])
+        self.targets = glob_v[start_frame:, :2]                                      # array([[-0.02427537,  0.02117807], [-0.02406481,  0.02145767], ..., [-0.0023489 ,  0.00633583]]) targets are averaged for the window w
         self.orientations = quaternion.as_float_array(ori_q)[start_frame:]           # array([[-0.51946022,  0.24279321, -0.60182678,  0.55589147], [-0.51947897,  0.24272502, -0.6018242 ,  0.55590699], ..., [ 0.46371668, -0.549402  ,  0.45730182,  0.52344268]])
         self.gt_pos = tango_pos[start_frame:]                                        # array([[ 0.17387274, -0.14344794, -0.0743621 ], [ 0.17362087, -0.14350179, -0.07425673], ..., [ 0.04869788, -0.01891041, -0.03532039]])
 
     # from data_utils.load_cached_sequences as feat, targ, aux = seq.get_feature(), seq.get_target(), seq.get_aux()
     def get_feature(self):
-        return self.features
+        return self.features   # [ 3 from glob_gyro; 3 from glob_acce ]*
 
     # from data_utils.load_cached_sequences as feat, targ, aux = seq.get_feature(), seq.get_target(), seq.get_aux()
     def get_target(self):
@@ -170,18 +174,18 @@ class StridedSequenceDataset(Dataset):
         self.step_size = step_size
         self.random_shift = random_shift
         self.transform = transform
-        self.interval = kwargs.get('interval', window_size)
+        self.interval = kwargs.get('interval', window_size) # 200
 
         self.data_path = [osp.join(root_dir, data) for data in data_list]
         self.index_map = []
         self.ts, self.orientations, self.gt_pos = [], [], []
-        self.features, self.targets, aux = load_cached_sequences(
+        self.features, self.targets, aux = load_cached_sequences(                            # self.features contains all the test-ready input data as 3D vectors [ 3 gyro, 3 acce ]*
             seq_type, root_dir, data_list, cache_path, interval=self.interval, **kwargs)
         for i in range(len(data_list)):
             self.ts.append(aux[i][:, 0])
             self.orientations.append(aux[i][:, 1:5])
             self.gt_pos.append(aux[i][:, -3:])
-            self.index_map += [[i, j] for j in range(0, self.targets[i].shape[0], step_size)]
+            self.index_map += [[i, j] for j in range(0, self.targets[i].shape[0], step_size)] # [seq0, 0] [seq0, 10] ... [seq0, target0.len] [seq1, 0] [seq1, 10] ... 
 
         if kwargs.get('shuffle', True):
             random.shuffle(self.index_map)
@@ -192,7 +196,7 @@ class StridedSequenceDataset(Dataset):
             frame_id += random.randrange(-self.random_shift, self.random_shift)
             frame_id = max(self.window_size, min(frame_id, self.targets[seq_id].shape[0] - 1))
 
-        feat = self.features[seq_id][frame_id:frame_id + self.window_size]
+        feat = self.features[seq_id][frame_id:frame_id + self.window_size]           # 200 elements from [ 3 gyro, 3 acce ]* starting at frame_id which increments by 10 on each query
         targ = self.targets[seq_id][frame_id]
 
         if self.transform is not None:

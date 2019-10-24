@@ -45,7 +45,7 @@ def run_test(network, data_loader, device, eval_mode=True):
     if eval_mode:
         network.eval()
     for bid, (feat, targ, _, _) in enumerate(data_loader):
-        pred = network(feat.to(device)).cpu().detach().numpy()
+        pred = network(feat.to(device)).cpu().detach().numpy()  # run on a [gyro0.x gyro1.x ... gyro199.x] ... [acc0.z, acc1.z ... acc199.z] chunk by calling ResNet1D.forward
         targets_all.append(targ.detach().numpy())
         preds_all.append(pred)
     targets_all = np.concatenate(targets_all, axis=0)

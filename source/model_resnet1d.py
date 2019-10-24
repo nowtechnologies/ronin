@@ -147,7 +147,7 @@ class GlobAvgOutputModule(nn.Module):
         return self.fc(x)
 
 
-class ResNet1D(nn.Module):
+class ResNet1D(nn.Module)
     # from ronin_resnet.get_model as ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2], base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
     # _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
     def __init__(self,                            num_inputs,     num_outputs,   block_type,  group_sizes, base_plane=64, output_block=None,         zero_init_residual=False, **kwargs):
@@ -217,7 +217,7 @@ class ResNet1D(nn.Module):
                 elif isinstance(m, BasicBlock1D):
                     nn.init.constant_(m.bn2.weight, 0)
 
-    def forward(self, x):
+    def forward(self, x):             # this performs the computaiton and returns the result.
         x = self.input_block(x)
         x = self.residual_groups(x)
         x = self.output_block(x)
