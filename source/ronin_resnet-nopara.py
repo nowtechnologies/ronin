@@ -383,7 +383,7 @@ def write_config(args):
         with open(osp.join(args.out_dir, 'config.json'), 'w') as f:
             json.dump(vars(args), f)
 
-
+# --mode test --root_dir . --test_path datasets/a000_7 --out_dir /tmp --model_path models/ronin_resnet/checkpoint_gsn_latest.pt
 if __name__ == '__main__':
     import argparse
 
@@ -391,8 +391,8 @@ if __name__ == '__main__':
     parser.add_argument('--train_list', type=str)
     parser.add_argument('--val_list', type=str, default=None)
     parser.add_argument('--test_list', type=str, default=None)
-    parser.add_argument('--test_path', type=str, default=None)
-    parser.add_argument('--root_dir', type=str, default='datasets/a000_7/', help='Path to data directory')
+    parser.add_argument('--test_path', type=str, default='datasets/a000_7')
+    parser.add_argument('--root_dir', type=str, default='/home/balazs/munka/nowtech/repos/nowtechnologies/ronin', help='Path to data directory')
     parser.add_argument('--cache_path', type=str, default=None, help='Path to cache folder to store processed data')
     parser.add_argument('--dataset', type=str, default='ronin', choices=['ronin', 'ridi'])
     parser.add_argument('--max_ori_error', type=float, default=20.0)
@@ -410,7 +410,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--continue_from', type=str, default=None)
     parser.add_argument('--out_dir', type=str, default='/tmp')
-    parser.add_argument('--model_path', type=str, default='models/ronin_resnet')
+    parser.add_argument('--model_path', type=str, default='models/ronin_resnet/checkpoint_gsn_latest.pt')
     parser.add_argument('--feature_sigma', type=float, default=0.00001)
     parser.add_argument('--target_sigma', type=float, default=0.00001)
 

@@ -192,6 +192,11 @@ class StridedSequenceDataset(Dataset):
 
     def __getitem__(self, item):
         seq_id, frame_id = self.index_map[item][0], self.index_map[item][1]
+        # print('StridedSequenceDataset.__getitem__ seq_id', seq_id, ' frame_id', frame_id)
+        # StridedSequenceDataset.__getitem__ seq_id 0  frame_id 0
+        # StridedSequenceDataset.__getitem__ seq_id 0  frame_id 10
+        # ...
+        # StridedSequenceDataset.__getitem__ seq_id 0  frame_id 58650
         if self.random_shift > 0:
             frame_id += random.randrange(-self.random_shift, self.random_shift)
             frame_id = max(self.window_size, min(frame_id, self.targets[seq_id].shape[0] - 1))
@@ -202,6 +207,7 @@ class StridedSequenceDataset(Dataset):
         if self.transform is not None:
             feat, targ = self.transform(feat, targ)
 
+        # print(feat.astype(np.float32).T.size) 1200
         return feat.astype(np.float32).T, targ.astype(np.float32), seq_id, frame_id    # .T is transpose
 
     def __len__(self):

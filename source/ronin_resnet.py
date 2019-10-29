@@ -22,6 +22,7 @@ _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
 # from ronin_resnet.test_sequence
 def get_model(arch):
     if arch == 'resnet18':
+        print('resnet18')
         network = ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2],
                            base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
     elif arch == 'resnet50':
@@ -45,7 +46,9 @@ def run_test(network, data_loader, device, eval_mode=True):
     if eval_mode:
         network.eval()
     for bid, (feat, targ, _, _) in enumerate(data_loader):
-        pred = network(feat.to(device)).cpu().detach().numpy()  # run on a [gyro0.x gyro1.x ... gyro199.x] ... [acc0.z, acc1.z ... acc199.z] chunk by calling ResNet1D.forward
+        print(feat.size())
+        pred = network(feat.to(device)).cpu().detach().numpy()  # run on a [gyro0.x gyro1.x ... gyro199.x] ... [acc0.z, acc1.z ... acc199.z] chunk by calling ResNet1D.forward. For each iteration, 10 (step_size) oldest elements fall out and the same amount come in
+        print(pred.size)
         targets_all.append(targ.detach().numpy())
         preds_all.append(pred)
     targets_all = np.concatenate(targets_all, axis=0)
@@ -296,6 +299,9 @@ def test_sequence(args):
     network = get_model(args.arch) # resnet18
     # network is ResNet1D(_input_channel, _output_channel, BasicBlock1D, [2, 2, 2, 2], base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
 
+    for param in network.parameters():
+        print(type(param.data), param.size())
+
     network.load_state_dict(checkpoint['model_state_dict']) #Copies parameters and buffers from state_dict into this module and its descendants.
     network.eval().to(device)                               # Sets the module in evaluation mode. This is equivalent with self.train(False).
     #  This method modifies the module in-place. the desired device of the parameters and buffers in this module
@@ -308,7 +314,8 @@ def test_sequence(args):
 
     for data in test_data_list:
         seq_dataset = get_dataset(root_dir, [data], args, mode='test')           # will be of type StridedSequenceDataset
-        seq_loader = DataLoader(seq_dataset, batch_size=1024, shuffle=False)
+        # was seq_loader = DataLoader(seq_dataset, batch_size=1024, shuffle=False)
+        seq_loader = DataLoader(seq_dataset, batch_size=1, shuffle=False)
         ind = np.array([i[1] for i in seq_dataset.index_map if i[0] == 0], dtype=np.int)
 
         targets, preds = run_test(network, seq_loader, device, True)
